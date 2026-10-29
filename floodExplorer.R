@@ -2,7 +2,7 @@ library(dplyr)
 library(glue)
 library(jsonlite)
 library(httr)
-library(sf)
+library(prism)
 library(readnoaa)
 dcFlood_times<-read.csv("data/DC_flood_times.csv")
 
@@ -29,10 +29,6 @@ dc<-noaa_nearby(lat=38.9007,lon=-77.0503)%>%
 
 #ISD number had to be used for global hourly dataset 72405013743
 #Pull all hourly data in one call then filter by flood time date ranges to save time
-dca<-noaa_get(dataset = "global-hourly",
-              station='72405013743',
-              start_date = earliestDate,
-              end_date = latestDate)
 
 dca<-noaa_get(dataset = "global-hourly",
               station='72405013743',
@@ -41,26 +37,20 @@ dca<-noaa_get(dataset = "global-hourly",
               datatypes = c('AA1','AA2','AA3','AA4'),
               include_location = TRUE)
 
-dcadats<-apply(dcFlood_times,1,function(x){
-  
+date_ranges<-c()
+dcaFiltered<-apply(dcFlood_times,1,function(x){
   startTime<-glue("{x['begin_date']} {x['begin_time']}")
   endTime<-glue("{x['end_date']} {x['end_time']}")
   
-  dca<-noaa_get(dataset = "global-hourly",
-                station='72405013743',
-                start_date = substr(startTime,1,10),
-                end_date = substr(endTime,1,10),
-                datatypes = c('AA1','AA2','AA3','AA4'))%>%
-    filter(lubridate::ymd_hms(date)>=startTime & lubridate::ymd_hms(date)<=endTime)
-  return(dca)
-}
-)
+  #go through each date range and filter out the flood dates we are concerned with 
+  filtDat<-dca%>%
+    filter(lubridate::ymd_hms(date)>=lubridate::ymd_hm(startTime)
+           & lubridate::ymd_hms(date)<=lubridate::ymd_hm(endTime))
+  message(glue("Pulling data for {startTime} - {endTime}"))
+  
+  date_ranges<<-c(date_ranges,glue("{startTime} - {endTime}"))
+  return(filtDat)
+})
 
-dca<-noaa_get(dataset = "global-hourly",
-         station='72405013743',
-         start_date = "2000-01-19",
-         end_date = "2000-01-20",
-         datatypes = c('AA1','AA2','AA3','AA4'))
-
-#types of data coverage and the 
-dc_prcp<-noaa_daily(station=dc,start_date = '1996-01-19', end_date = '1996-01-20')
+#create names for nested dataframe list created in dcaFiltered
+names(dcaFiltered)<-date_ranges
