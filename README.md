@@ -1,5 +1,6 @@
 
 How to run this project:
+
 Info on Data sources
 
 Based on the flood event datasets in DC, I am pulling precipitation data from 2 sources:
@@ -9,8 +10,7 @@ Based on the flood event datasets in DC, I am pulling precipitation data from 2 
 
 To investigate the stations in the area, I found 25 stations nearby Foggy Bottom Metro station at the following coordinates: lat=38.9007,lon=-77.0503. I used the readnoaa package in R to find these nearby stations.I also checked for precipitation data availability for the 25 stations that I found.
 
-Washington Reagan had the best 
-
+Washington Reagan had the most robust precipiation time series data as it covers 86 years of flood precipitation from 1941-2026.
 
 Robustness Check for NOAA station precipitation data
 DCA Reagan
@@ -42,3 +42,13 @@ DCA Reagan
 |USW00013743 |PRCP    |       1941|      2026|    86|WASHINGTON REAGAN NATL AP |
 |USC00181135 |PRCP    |       1944|      1956|    13|BRIGHTWOOD DC             |
 |US1DCDC0040 |PRCP    |       2022|      2026|     5|WASHINGTON 2.2 ESE        |
+
+Dictionary for added columns in station precipitation data
+  AA1-AA4 precipitation data was pulled from NOAA. Info on these readings can be found on pg 13 of the    following documentation : https://www.ncei.noaa.gov/pub/data/noaa/isd-format-document.pdf 
+  
+  Separated the readings from the 4 accumulated readings and created new variables that can be found in   the HDF5 dataset
+  n=[1,2,3,4]
+  period_q_n: LIQUID-PRECIPITATION period quantity for nth accumulation
+  depth_dim_n: LIQUID-PRECIPITATION depth dimension for nth accumulation in mm
+  cond_code_n: LIQUID-PRECIPITATION condition code for nth accumulation
+  qual_code_n : LIQUID-PRECIPITATION quality code for nth accumulation
