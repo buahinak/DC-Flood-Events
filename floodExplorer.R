@@ -139,23 +139,25 @@ empty_rast<-function(){
 
 formatDT_NOAA<-function(dtRange){
   #date range has to be in cormat YYYY-mm-dd HH:MM - YYYY-mm-dd HH:MM 
+  dtformStart<-lubridate::ymd_hm(substr(dtRange,1,16))
+  dtformEnd<-lubridate::ymd_hm(substr(dtRange,20,35))
   formatted<-as.character(
     seq(
-      from = lubridate::ymd_hm(substr(dtRange,1,16)),
-      to = lubridate::ymd_hm(substr(dtRange,20,35)), 
-      by = "min")
+      from = lubridate::floor_date(dtformStart,unit='hour'),
+      to = lubridate::ceiling_date(dtformEnd,unit='hour'), 
+      by = "hour")
     )
   
   
   #filter out odd minutes of day because S3 bucket only has data per 2 minutes
-  evens<-formatted[lubridate::minute(formatted) %% 2 ==0 |lubridate::minute(formatted)==0]
+  #evens<-formatted[lubridate::minute(formatted) %% 2 ==0 |lubridate::minute(formatted)==0]
   
   # if date range is shorter than 2 mins and isnt an even minute,evens is empty. 
   #if evens is empty we will return the date from the dcFloodtimes 
-  if(length(evens)==0){
-    return(formatted)
-  }
-  return(evens)
+  #if(length(evens)==0){
+    #return(formatted)
+ # }
+  return(formatted)
 }
 
 empty_raster_DC<-empty_rast()
