@@ -52,3 +52,7 @@ Dictionary for added columns in station precipitation data
   depth_dim_n: LIQUID-PRECIPITATION depth dimension for nth accumulation in mm
   cond_code_n: LIQUID-PRECIPITATION condition code for nth accumulation
   qual_code_n : LIQUID-PRECIPITATION quality code for nth accumulation
+  
+  depth_dim_n was divided by 10 to get the resulting value
+  Missing values for period quantity(coded as 99 in actual data) are NA in dataset
+  Missing values for depth dimension(coded as 9999 in actual data) are NA in dataset

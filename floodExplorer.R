@@ -34,7 +34,7 @@ dc_stations<-noaa_nearby(lat=38.9007,lon=-77.0503)%>%
 robustnessCheck<-apply(dc_stations,1,function(x){
   coverage<-noaa_coverage(x['station'])%>%filter(element=='PRCP')%>%mutate(name=x['name'])
   return(coverage)
-})%>%do.call("bind_rows",.)
+})%>%bind_rows()
 
 #Create md tale for Read me 
 #knitr::kable(robustnessCheck,format='markdown')
@@ -111,7 +111,9 @@ PRCP_stat<-function(station_isd="72405013743",
     #convert depth dimension to mm 
     precipData<-precipData%>%
       tidyr::separate(col=all_of(p),into = wider_cols,sep=",",fill='right',convert=TRUE)%>%
-      mutate(across(starts_with("depth_dim"),~./10))
+      mutate(across(starts_with("depth_dim"), ~ if_else(.==9999,NA,./10)),
+             across(starts_with("period_q"), ~ if_else(.==99,NA,.)),
+      )
   }
   return(precipData)
 }
@@ -261,9 +263,10 @@ dcFloodPRCP<-compilePRCP(sampleDCFloodevents,conf_buck(NOAMRMMS_bucket,region))
 
 
 #Create RHDF5 file
-
 h5_file <- "data/dc_floodEvent_DB.h5"
 h5createFile(h5_file)
+
+
 
 #split into time series group and gridded precipitation group
 # allows for possible extension to other gridded precipitation sources like PRISm
@@ -273,11 +276,27 @@ h5createGroup(h5_file, "station_TimeSeries/Washington National")
 h5createGroup(h5_file, "gridded_precipitation")
 h5createGroup(h5_file, "gridded_precipitation/NOAAA MRMS")
 
-#add 
+#write station data
 PRCPdataOBJ$date_char <- as.character(PRCPdataOBJ$date) 
 h5write(PRCPdataOBJ, h5_file, "station_TimeSeries/Washington National/ts_data")
 
 
+dc_reagan<-noaa_nearby(lat=38.9007,lon=-77.0503)%>%
+  filter(name=='WASHINGTON REAGAN NATL AP')
+
+station<-as.character(dc_reagan%>%pull(station))
+lat<-as.character(dc_reagan%>%pull(latitude))
+long<-as.character(dc_reagan%>%pull(longitude))
+
+#add metadata and attriutes
+pointr <- H5Fopen(h5_file)
+actual<- H5Dopen(pointr,"station_TimeSeries/Washington National/ts_data")
+h5writeAttribute(station, actual, "Station ID")
+h5writeAttribute(glue("{lat},{long"),actual, "Coordinates")
+h5writeAttribute("mm", actual, "Units")
+
+H5Fclose(pointr)
+H5Dclose(actual)
 #how to download rhdf5
 #install.packages("BiocManager")
 #BiocManager::install('rhdf5')
