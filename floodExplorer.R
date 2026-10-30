@@ -24,36 +24,80 @@ startyrs<-unique(substr(dcFlood_times$begin_date,1,4))
 endyrs<-unique(substr(dcFlood_times$end_date,1,4))
 yrsCaptured<-unique(c(startyrs,endyrs))
 
-#Washington Reagen has most up to date weather data 
+#looked at 25 nearby stations to Foggy Bottom,DC. 
+dc_stations<-noaa_nearby(lat=38.9007,lon=-77.0503)%>%
+  select(station,name)
+
+#checked how robust data from 25 stations were
+robustnessCheck<-apply(dc_stations,1,function(x){
+  coverage<-noaa_coverage(x['station'])%>%filter(element=='PRCP')%>%mutate(name=x['name'])
+  return(coverage)
+})%>%do.call("bind_rows",.)
+
+#Create md tale for Read me 
+#knitr::kable(robustnessCheck,format='markdown')
+
+
+#Washington Reagen had the most coverage of precipitation based on our flood events so we will pull 
+# data from Washington reagan station
+
+#Pull station ID
 dc<-noaa_nearby(lat=38.9007,lon=-77.0503)%>%
   filter(name=='WASHINGTON REAGAN NATL AP')%>%
   pull(station)
 
-#ISD number had to be used for global hourly dataset 72405013743
+#ISD number for Washington Reagan had to be used for global hourly dataset 72405013743
 #Pull all hourly data in one call then filter by flood time date ranges to save time
 
-dca<-noaa_get(dataset = "global-hourly",
-              station='72405013743',
-              start_date = earliestDate,
-              end_date = latestDate,
-              datatypes = c('AA1','AA2','AA3','AA4'),
-              include_location = TRUE)
+#function to pull noaa data by station and cleans the data
+pull_HourlyPRCP_st<-function(station_isd,mindt,maxdt){
+  
+  prcpDat<-c('AA1','AA2','AA3','AA4')
+  dca<-noaa_get(dataset = "global-hourly",
+                station=station_isd,
+                start_date = mindt,
+                end_date = maxdt,
+                datatypes = prcpDat,
+                include_location = TRUE)
+  #split each prcp accumulation reading aa1-aa4 into more columns
+  for(p in tolower(prcpDat)){
+    #add number to names 
+    wider_cols<-c("period_q","depth_dim","cond_code","qual_code")
+    wider_cols<-glue('{wider_cols}_{substr(p,3,3)}')
+    
+    #convert depth dimension to mm 
+    dca<-dca%>%
+      tidyr::separate(col=all_of(p),into = wider_cols,sep=",",fill='right',convert=TRUE)%>%
+      mutate(across(starts_with("depth_dim"),~./10))
+  }
 
+  return(dca)
+}
+
+dca<-pull_HourlyPRCP_st("72405013743",earliestDate,latestDate)
 #Initialize date ranges vector so that we can name our list of dataframes 
-date_ranges<-c()
-dcaFiltered<-apply(dcFlood_times,1,function(x){
-  startTime<-glue("{x['begin_date']} {x['begin_time']}")
-  endTime<-glue("{x['end_date']} {x['end_time']}")
-  
-  #go through each date range and filter out the flood dates we are concerned with 
-  filtDat<-dca%>%
-    filter(lubridate::ymd_hms(date)>=lubridate::ymd_hm(startTime)
-           & lubridate::ymd_hms(date)<=lubridate::ymd_hm(endTime))
-  message(glue("Pulling data for {startTime} - {endTime}"))
-  
-  date_ranges<<-c(date_ranges,glue("{startTime} - {endTime}"))
-  return(filtDat)
-})
+
+#function that intakes a hourly PRCP and keeps data in flood event date range 
+#This will also create a global vector with all the date ranges we are concerned with 
+#This will help when pulling gridded precipitation data
+extract_dateRanges<-function(df_filt,floodEvent){
+  date_ranges<-c()
+  dcaFiltered<-apply(floodEvent,1,function(x){
+    startTime<-glue("{x['begin_date']} {x['begin_time']}")
+    endTime<-glue("{x['end_date']} {x['end_time']}")
+    
+    #go through each date range and filter out the flood dates we are concerned with 
+    filtDat<-df_filt%>%
+      filter(lubridate::ymd_hms(date)>=lubridate::ymd_hm(startTime)
+             & lubridate::ymd_hms(date)<=lubridate::ymd_hm(endTime))
+    message(glue("Pulling data for {startTime} - {endTime}"))
+    
+    date_ranges<<-c(date_ranges,glue("{startTime} - {endTime}"))
+    return(filtDat)
+  })%>%do.call("bind_rows",.)
+}
+
+dca_stationFinal<-extract_dateRanges(df_filt=dca,floodEvent = dcFlood_times)
 
 #create names for nested dataframe list created in dcaFiltered
 names(dcaFiltered)<-date_ranges
@@ -121,6 +165,7 @@ region<-"us-east-1"
 bucket_info<-bucket_exists(bucket=NOAMRMMS_bucket,region=region)
 bucket_check<-bucket_info[1]
 
+# going
 then<-Sys.time()
 if(bucket_check){
   listed_rasters<-lapply(date_ranges[99:100],function(x){
