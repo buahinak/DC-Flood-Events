@@ -263,7 +263,12 @@ dcFloodPRCP<-compilePRCP(sampleDCFloodevents,conf_buck(NOAMRMMS_bucket,region))
 
 
 #Create RHDF5 file
+
 h5_file <- "data/dc_floodEvent_DB.h5"
+if(file.exists(h5_file)) {
+  file.remove(h5_file)
+  h5closeAll()
+  }
 h5createFile(h5_file)
 
 
@@ -281,6 +286,9 @@ PRCPdataOBJ$date_char <- as.character(PRCPdataOBJ$date)
 h5write(PRCPdataOBJ, h5_file, "station_TimeSeries/Washington National/ts_data")
 
 
+#write gridded precipitation data
+dcFloodPRCPArr <- terra::as.array(dcFloodPRCP)
+h5write(dcFloodPRCPArr, h5_file, "gridded_precipitation/NOAAA MRMS/QPE_01HOURS_data")
 dc_reagan<-noaa_nearby(lat=38.9007,lon=-77.0503)%>%
   filter(name=='WASHINGTON REAGAN NATL AP')
 
@@ -288,15 +296,31 @@ station<-as.character(dc_reagan%>%pull(station))
 lat<-as.character(dc_reagan%>%pull(latitude))
 long<-as.character(dc_reagan%>%pull(longitude))
 
-#add metadata and attriutes
+#add metadata and attriutes for time series data
 pointr <- H5Fopen(h5_file)
 actual<- H5Dopen(pointr,"station_TimeSeries/Washington National/ts_data")
 h5writeAttribute(station, actual, "Station ID")
-h5writeAttribute(glue("{lat},{long"),actual, "Coordinates")
+h5writeAttribute(glue("{lat},{long}"),actual, "Coordinates")
 h5writeAttribute("mm", actual, "Units")
+h5writeAttribute("HOURLY ACCUMULATION OF LIQUID PRECIPITATION. SOME EVENTS HAVE >AN HOUR ", actual, "Precipitation Collection")
+
+
+#add metadata and attributes for gridded precipitation data
+actual<- H5Dopen(pointr,"gridded_precipitation/NOAAA MRMS/QPE_01HOURS_data")
+crsObj <- terra::crs(dcFloodPRCP)
+minMxVec <- as.vector(terra::ext(dcFloodPRCP)) 
+timeIND <- as.character(terra::time(dcFloodPRCP)) 
+
+h5writeAttribute(crsObj, actual, "CRS")
+h5writeAttribute(minMxVec, actual, "Extent Bound Box")
+h5writeAttribute(timeIND, actual, "Time Index(UTC)")
+h5writeAttribute("mm", actual, "Units")
+h5writeAttribute("HOURLY ACCUMULATION OF LIQUIDPRECIPITATION", actual, "Precipitation Collection")
 
 H5Fclose(pointr)
 H5Dclose(actual)
+h5closeAll()
+#
 #how to download rhdf5
 #install.packages("BiocManager")
 #BiocManager::install('rhdf5')
