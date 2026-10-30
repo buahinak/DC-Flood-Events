@@ -1,3 +1,17 @@
+
+How to run this project:
+Info on Data sources
+
+Based on the flood event datasets in DC, I am pulling precipitation data from 2 sources:
+  
+  Weather Station data in the DC area
+  NOAA MRMS
+
+To investigate the stations in the area, I found 25 stations nearby Foggy Bottom Metro station at the following coordinates: lat=38.9007,lon=-77.0503. I used the readnoaa package in R to find these nearby stations.I also checked for precipitation data availability for the 25 stations that I found.
+
+Washington Reagan had the best 
+
+
 Robustness Check for NOAA station precipitation data
 DCA Reagan
 
