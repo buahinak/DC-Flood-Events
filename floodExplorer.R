@@ -66,10 +66,6 @@ names(dcaFiltered)<-date_ranges
 #used file structure found after coding to loop over date ranges
 library(aws.s3)
 
-NOAMRMMS_bucket<-"noaa-mrms-pds/"
-region<-"us-east-1"
-bucket_info<-bucket_exists(bucket=NOAMRMMS_bucket,region=region)
-bucket_check<-bucket_info[1]
 
 state_bounds<-states(cb=FALSE,class='sf')
 sort(unique(state_bounds$NAME))
@@ -101,19 +97,33 @@ formatDT_NOAA<-function(dtRange){
   #date range has to be in cormat YYYY-mm-dd HH:MM - YYYY-mm-dd HH:MM 
   formatted<-as.character(
     seq(
-      from = lubridate::ymd_hm(substr(dtRange[1],1,16)),
-      to = lubridate::ymd_hm(substr(dtRange[1],20,35)), 
-      by = "hour")
+      from = lubridate::ymd_hm(substr(dtRange,1,16)),
+      to = lubridate::ymd_hm(substr(dtRange,20,35)), 
+      by = "min")
     )
-  return(formatted)
+  
+  
+  #filter out odd minutes of day because S3 bucket only has data per 2 minutes
+  evens<-formatted[lubridate::minute(formatted) %% 2 ==0 |lubridate::minute(formatted)==0]
+  
+  # if date range is shorter than 2 mins and isnt an even minute,evens is empty. 
+  #if evens is empty we will return the date from the dcFloodtimes 
+  if(length(evens)==0){
+    return(formatted)
+  }
+  return(evens)
 }
 
 empty_raster_DC<-empty_rast()
 
+NOAMRMMS_bucket<-"s3://noaa-mrms-pds/"
+region<-"us-east-1"
+bucket_info<-bucket_exists(bucket=NOAMRMMS_bucket,region=region)
+bucket_check<-bucket_info[1]
 
-
+then<-Sys.time()
 if(bucket_check){
-  feelme<-lapply(date_ranges[1],function(x){
+  listed_rasters<-lapply(date_ranges[99:100],function(x){
     eachHour<-formatDT_NOAA(x)
     #put each datetime in date format that is shown  in CONUS/PrecipRate folder 
     #remove all none digit using regex replacement
@@ -122,34 +132,47 @@ if(bucket_check){
     # https://gdal.org/en/stable/user/virtual_file_systems.html
     onlyDigits<-gsub("[^0-9]","",eachHour)
     dt_timeRST<-base::mapply(FUN=function(dtForm,digForm){
-      print(as.numeric(digForm))
-      if(base::all(as.numeric(digForm)<20201014000000)){
-        message("Data prior to 20201014. Adding Empty raster")
+      
+      # for flood events that where shorter than a minute and were on an odd minute, we will create an empty raster as well
+      if(lubridate::minute(dtForm) %% 2!=0){
+        #message("Data prior to 20201014. Adding Empty raster")
         temprst<-empty_raster_DC
         time(temprst)<-as.POSIXct(dtForm,tz='UTC')
         return(temprst)
-      }else{
-        ymd_d<-substr(digForm,1,8)
-        formatDT<-glue("{substr(digForm,1,8)}-{substr(digForm,9,15)}")
-        preciprate_suffix<-glue('{formatDT}/MRMS_PrecipRate_00.00_')
-        rateGZname<-glue('/vsigzip//vsicurl/https://noaa-mrms-pds.s3.amazonaws.com/CONUS/PrecipRate_00.00/{ymd_d}/{preciprate_suffix}.grib2.gz')
-        
-        rstDay<-terra::rast(rateGZname)
-        #project,crop and mask onto DC high resolution raster 
-        dc_vect_project<-terra::project(dc_vect,crs(rstDay))
-        dcSFdailyDat<-terra::crop(rstDay,dc_vect_project)
-        maskedDCDaily<-terra::mask(dcSFdailyDat,dc_vect)
-        terra::time(maskedDCDaily)<-as.POSIXct(dtForm,tz='UTC')
-        return(maskedDCDaily)
       }
-      
-    },eachHour,onlyDigits,SIMPLIFY=FALSE)
-    return(terra::rast(dt_timeRST))
-    }
-  )
-  
-}
+      else{
+        if(base::all(as.numeric(digForm)<20201014000000)){
+          #message("Data prior to 20201014. Adding Empty raster")
+          temprst<-empty_raster_DC
+          print(dtForm)
+          time(temprst)<-as.POSIXct(dtForm,tz='UTC')
+          return(temprst)
+        }
+        else{
+          
+          ymd_d<-substr(digForm,1,8)
+          formatDT<-glue("{substr(digForm,1,8)}-{substr(digForm,9,15)}")
+          preciprate_suffix<-glue('MRMS_PrecipRate_00.00_{formatDT}')
+          rateGZname<-glue('/vsigzip//vsicurl/https://noaa-mrms-pds.s3.amazonaws.com/CONUS/PrecipRate_00.00/{ymd_d}/{preciprate_suffix}.grib2.gz')
+          rstDay<-terra::rast(rateGZname)
+          #project,crop and mask onto DC high resolution raster 
+          dc_vect_project<-terra::project(dc_vect,crs(rstDay))
+          dcSFdailyDat<-terra::crop(rstDay,dc_vect_project)
+          maskedDCDaily<-terra::mask(dcSFdailyDat,dc_vect_project)
+          terra::time(maskedDCDaily)<-as.POSIXct(dtForm,tz='UTC')
+          print(glue("Downloaded {dtForm}"))
+          return(maskedDCDaily)
+        }
+      }
 
+    },eachHour,onlyDigits,SIMPLIFY=FALSE)
+    
+    return(terra::rast(dt_timeRST))
+  })
+  compiledRasters<-terra::rast(listed_rasters)
+}
+now<-Sys.time()
+print(now-then)
 apply(dcFlood_times,1,function(x){
   
   startDate<-substr(x[['begin_date']],1,10)
@@ -162,22 +185,6 @@ apply(dcFlood_times,1,function(x){
   
 })
 
-#rast test
-testrast<-rast("data/prismtmp/prism_ppt_us_25m_19960618/prism_ppt_us_25m_19960618.bil")
-#pulled most detailed TIGER/line file
-state_bounds<-states(cb=FALSE,class='sf')
-sort(unique(state_bounds$NAME))
-
-#found DC's name as District of Columbia
-dc_bounds<-state_bounds%>%
-  filter(NAME=='District of Columbia')
-
-#turn into raster
-dc_vect<-vect(dc_bounds)
-dc_vect<-project(dc_vect,crs(testrast))
-
-dcSFdailyDat<-crop(testrast,dc_vect)
-maskedDCDaily<-terra::mask(dcSFdailyDat,dc_vect)
 #how to download rhdf5
 #install.packages("BiocManager")
 #BiocManager::install('rhdf5')
