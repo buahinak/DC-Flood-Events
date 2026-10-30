@@ -6,6 +6,8 @@ library(readnoaa)
 library(rhdf5)
 library(sf)
 library(tigris)
+library(aws.s3)
+
 dcFlood_times<-read.csv("data/DC_flood_times.csv")
 
 #check missing
@@ -42,7 +44,7 @@ robustnessCheck<-apply(dc_stations,1,function(x){
 # data from Washington reagan station
 
 #Pull station ID
-dc<-noaa_nearby(lat=38.9007,lon=-77.0503)%>%
+dc_reagan<-noaa_nearby(lat=38.9007,lon=-77.0503)%>%
   filter(name=='WASHINGTON REAGAN NATL AP')%>%
   pull(station)
 
@@ -50,57 +52,78 @@ dc<-noaa_nearby(lat=38.9007,lon=-77.0503)%>%
 #Pull all hourly data in one call then filter by flood time date ranges to save time
 
 #function to pull noaa data by station and cleans the data
-pull_HourlyPRCP_st<-function(station_isd,mindt,maxdt){
+pull_dateRanges<-function(floodDT){
+  date_ranges<-glue_data(floodDT,"{begin_date} {begin_time} - {end_date} {end_time}")
+  return(date_ranges)
+}
+
+pull_HourlyPRCP_st<-function(station_isd="72405013743",
+                             mindt,
+                             maxdt,
+                             prcpDat=c('AA1','AA2','AA3','AA4')){
   
-  prcpDat<-c('AA1','AA2','AA3','AA4')
+  
   dca<-noaa_get(dataset = "global-hourly",
                 station=station_isd,
                 start_date = mindt,
                 end_date = maxdt,
                 datatypes = prcpDat,
                 include_location = TRUE)
-  #split each prcp accumulation reading aa1-aa4 into more columns
+
+  return(dca)
+}
+
+PRCP_stat<-function(station_isd="72405013743",
+                    floodDt,
+                    prcpDat=c('AA1','AA2','AA3','AA4')){
+  
+  earliestDate<-min(as.Date(dcFlood_times$begin_date))
+  latestDate<-max(as.Date(dcFlood_times$begin_date))
+  
+  currData<-pull_HourlyPRCP_st(mindt=earliestDate,maxdt=latestDate)
+  
+  print(summary(currData))
+  precipData<-apply(floodDt,1,function(x){
+    selMinDt<-x[['begin_date']]
+    selMinTime<-x[['begin_time']]
+    selMaxDt<-x[['end_date']]
+    selMaxTime<-x[['end_time']]
+    
+    startTime<-lubridate::ymd_hm(glue("{selMinDt} {selMinTime}"))
+    endTime<-lubridate::ymd_hm(glue("{selMaxDt} {selMaxTime}"))
+    
+    currData<-currData%>%
+      filter(date>=startTime & 
+               date<=endTime)
+    message(glue("Pulling data for {startTime} - {endTime}"))
+    
+    #go through each date range and filter out the flood dates we are concerned with 
+
+    return(currData)
+  })%>%bind_rows()
+  
+  #clean columns
   for(p in tolower(prcpDat)){
     #add number to names 
     wider_cols<-c("period_q","depth_dim","cond_code","qual_code")
     wider_cols<-glue('{wider_cols}_{substr(p,3,3)}')
     
     #convert depth dimension to mm 
-    dca<-dca%>%
+    precipData<-precipData%>%
       tidyr::separate(col=all_of(p),into = wider_cols,sep=",",fill='right',convert=TRUE)%>%
       mutate(across(starts_with("depth_dim"),~./10))
   }
-
-  return(dca)
+  return(precipData)
 }
 
-dca<-pull_HourlyPRCP_st("72405013743",earliestDate,latestDate)
+
+PRCPdataOBJ<-PRCP_stat(floodDt=dcFlood_times)
+date_ranges<-pull_dateRanges(dcFlood_times)
 #Initialize date ranges vector so that we can name our list of dataframes 
 
 #function that intakes a hourly PRCP and keeps data in flood event date range 
 #This will also create a global vector with all the date ranges we are concerned with 
 #This will help when pulling gridded precipitation data
-extract_dateRanges<-function(df_filt,floodEvent){
-  date_ranges<-c()
-  dcaFiltered<-apply(floodEvent,1,function(x){
-    startTime<-glue("{x['begin_date']} {x['begin_time']}")
-    endTime<-glue("{x['end_date']} {x['end_time']}")
-    
-    #go through each date range and filter out the flood dates we are concerned with 
-    filtDat<-df_filt%>%
-      filter(lubridate::ymd_hms(date)>=lubridate::ymd_hm(startTime)
-             & lubridate::ymd_hms(date)<=lubridate::ymd_hm(endTime))
-    message(glue("Pulling data for {startTime} - {endTime}"))
-    
-    date_ranges<<-c(date_ranges,glue("{startTime} - {endTime}"))
-    return(filtDat)
-  })%>%do.call("bind_rows",.)
-}
-
-dca_stationFinal<-extract_dateRanges(df_filt=dca,floodEvent = dcFlood_times)
-
-#create names for nested dataframe list created in dcaFiltered
-names(dcaFiltered)<-date_ranges
 
 #uuse NOAMRMS data from AWS
 # found aws datasets at mesonet.agron.iastate.edu/mrms
@@ -108,7 +131,6 @@ names(dcaFiltered)<-date_ranges
 # More info at : https://blog.djnavarro.net/posts/2022-03-17_using-aws-s3-in-r/
 #from browsing bucket I found CONUS folders : https://noaa-mrms-pds.s3.amazonaws.com/index.html#CONUS/PrecipRate_00.00/
 #used file structure found after coding to loop over date ranges
-library(aws.s3)
 
 
 state_bounds<-states(cb=FALSE,class='sf')
@@ -117,25 +139,11 @@ sort(unique(state_bounds$NAME))
 dc_bounds<-state_bounds%>%
   filter(NAME=='District of Columbia')
 dc_vect<-vect(dc_bounds)
-
+#create master dc_sample
+dc_sampling <- terra::rast(terra::ext(dc_vect), resolution = 0.01, crs = terra::crs(dc_vect))
 #pull populated dc raster to create an "empty template" for files that cannot be pulled
 #Earliest gridded precipitation data is 20201014 so I will set dates before 20201014 as NA 
 
-empty_rast<-function(){
-  rateGZname<-glue('/vsigzip//vsicurl/https://noaa-mrms-pds.s3.amazonaws.com/CONUS/PrecipRate_00.00/20201014/MRMS_PrecipRate_00.00_20201014-000000.grib2.gz')
-  rstDay<-rast(rateGZname)
-  state_bounds<-states(cb=FALSE,class='sf')
-  #found DC's name as District of Columbia
-  dc_bounds<-state_bounds%>%
-    filter(NAME=='District of Columbia')
-  dc_vect<-vect(dc_bounds)
-  
-  dc_vect_project<-terra::project(dc_vect,crs(rstDay))
-  dcSFdailyDat<-terra::crop(rstDay,dc_vect_project)
-  maskedDCDaily<-terra::mask(dcSFdailyDat,dc_vect_project)
-  empt_<-terra::init(maskedDCDaily,NA)
-  return(rast(empt_))
-}
 
 formatDT_NOAA<-function(dtRange){
   #date range has to be in cormat YYYY-mm-dd HH:MM - YYYY-mm-dd HH:MM 
@@ -147,8 +155,6 @@ formatDT_NOAA<-function(dtRange){
       to = lubridate::ceiling_date(dtformEnd,unit='hour'), 
       by = "hour")
     )
-  
-  
   #filter out odd minutes of day because S3 bucket only has data per 2 minutes
   #evens<-formatted[lubridate::minute(formatted) %% 2 ==0 |lubridate::minute(formatted)==0]
   
@@ -160,77 +166,117 @@ formatDT_NOAA<-function(dtRange){
   return(formatted)
 }
 
-empty_raster_DC<-empty_rast()
-
+conf_buck<-function(bucket_arn,region){
+  bucket_info<-bucket_exists(bucket=NOAMRMMS_bucket,region=region)
+  bucket_check<-bucket_info[1]
+  return(bucket_check)
+}
 NOAMRMMS_bucket<-"s3://noaa-mrms-pds/"
 region<-"us-east-1"
-bucket_info<-bucket_exists(bucket=NOAMRMMS_bucket,region=region)
-bucket_check<-bucket_info[1]
+
+bucket_check<-conf_buck(NOAMRMMS_bucket,region)
 
 # going
 then<-Sys.time()
-if(bucket_check){
-  listed_rasters<-lapply(date_ranges[99:100],function(x){
-    eachHour<-formatDT_NOAA(x)
-    #put each datetime in date format that is shown  in CONUS/PrecipRate folder 
-    #remove all none digit using regex replacement
-    #tried downloading to temp file created in R but was having issues with that. Decided to stream into R instead using terra package
-    # add /vsigzip//vsicurl/ to properly be able to get rast object from URL
-    # https://gdal.org/en/stable/user/virtual_file_systems.html
-    onlyDigits<-gsub("[^0-9]","",eachHour)
-    dt_timeRST<-base::mapply(FUN=function(dtForm,digForm){
-      
-      # for flood events that where shorter than a minute and were on an odd minute, we will create an empty raster as well
-      if(lubridate::minute(dtForm) %% 2!=0){
-        #message("Data prior to 20201014. Adding Empty raster")
-        temprst<-empty_raster_DC
-        time(temprst)<-as.POSIXct(dtForm,tz='UTC')
-        return(temprst)
-      }
-      else{
-        if(base::all(as.numeric(digForm)<20201014000000)){
-          #message("Data prior to 20201014. Adding Empty raster")
-          temprst<-empty_raster_DC
-          print(dtForm)
-          time(temprst)<-as.POSIXct(dtForm,tz='UTC')
-          return(temprst)
-        }
-        else{
-          
-          ymd_d<-substr(digForm,1,8)
-          formatDT<-glue("{substr(digForm,1,8)}-{substr(digForm,9,15)}")
-          preciprate_suffix<-glue('MRMS_PrecipRate_00.00_{formatDT}')
-          rateGZname<-glue('/vsigzip//vsicurl/https://noaa-mrms-pds.s3.amazonaws.com/CONUS/PrecipRate_00.00/{ymd_d}/{preciprate_suffix}.grib2.gz')
-          rstDay<-terra::rast(rateGZname)
-          #project,crop and mask onto DC high resolution raster 
-          dc_vect_project<-terra::project(dc_vect,crs(rstDay))
-          dcSFdailyDat<-terra::crop(rstDay,dc_vect_project)
-          maskedDCDaily<-terra::mask(dcSFdailyDat,dc_vect_project)
-          terra::time(maskedDCDaily)<-as.POSIXct(dtForm,tz='UTC')
-          print(glue("Downloaded {dtForm}"))
-          return(maskedDCDaily)
-        }
-      }
 
-    },eachHour,onlyDigits,SIMPLIFY=FALSE)
-    
-    return(terra::rast(dt_timeRST))
-  })
-  compiledRasters<-terra::rast(listed_rasters)
+#pulls gridded rast data from NOAAA MRMS for a datetime 
+#put each datetime in date format that is shown  in CONUS/PrecipRate folder 
+#remove all none digit using regex replacement
+#tried downloading to temp file created in R but was having issues with that. Decided to stream into R instead using terra package
+# add /vsigzip//vsicurl/ to properly be able to get rast object from URL
+# https://gdal.org/en/stable/user/virtual_file_systems.html
+getGriddedPRCP<-function(dt,
+                         MRMSFOLDER="MultiSensor_QPE_01H_Pass2_00.00",
+                         arn='https://noaa-mrms-pds.s3.amazonaws.com',
+                         rastProject,
+                         sampleRast){
+  
+  onlyDigits<-gsub("[^0-9]","",dt)
+  ymd_d<-substr(onlyDigits,1,8)
+  formatDT<-glue("{substr(onlyDigits,1,8)}-{substr(onlyDigits,9,15)}")
+  fileName<-glue("MRMS_{MRMSFOLDER}_{formatDT}.grib2.gz")
+  gzPath<-glue("/vsigzip//vsicurl/{arn}/CONUS/{MRMSFOLDER}/{ymd_d}/{fileName}")
+  rstDay<-terra::rast(gzPath)
+  #project,crop and mask onto DC high resolution raster 
+  vect_project<-terra::project(rastProject,crs(rstDay))
+  prcp<-terra::crop(rstDay,vect_project)
+  masked_prcp<-terra::mask(prcp,vect_project)
+  align_prcp <- terra::resample(masked_prcp, sampleRast, method = "near")
+  #terra::ext(align_prcp) <- terra::ext(sampleRast)
+  terra::time(align_prcp)<-as.POSIXct(dt,tz='UTC')
+  return(align_prcp)
 }
-now<-Sys.time()
-print(now-then)
-apply(dcFlood_times,1,function(x){
-  
-  startDate<-substr(x[['begin_date']],1,10)
-  endDate<-substr(x[['end_date']],1,10)
-  get_prism_dailys(minDate = startDate,
-                   maxDate = endDate,
-                   keepZip = FALSE,
-                   type = 'ppt')
-  
-  
-})
+
+#pass vector of date ranges in 'YYYY-MM-DD HH:MM - YYYY-MM-DD HH:MM' format along with check on bucket
+#availability into function to compile NOAA MRMS 
+
+compilePRCP<-function(date_range,bucket_available){
+  if(bucket_check){
+    #missing_rast<-terra::init(dc_sampling,NA)
+    #alighn_missing <- terra::resample(missing_rast, dc_sampling, method = "near")
+    listed_rasters<-lapply(date_range,function(x){
+      eachHour<-formatDT_NOAA(x)
+
+      dt_timeRST<-lapply(eachHour,function(dt){
+        
+        #error catch. If no folder for date, return NA and move to next date Range
+        rastfin<-tryCatch({
+          maskedDCDaily<-getGriddedPRCP(dt,rastProject = dc_vect,sampleRast=dc_sampling)
+          message(glue("Pulled event from {dt}"))
+          maskedDCDaily
+        },error=function(e){
+          message(glue("Event missing for {dt}\n{e$message}"))
+          # misErr<-missing_rast
+          # terra::time(misErr)<-as.POSIXct(dt,tz='UTC')
+          # names(misErr) <- "MultiSensor_QPE_01H_Pass2_0-GPML"
+          # misErr
+          return(NULL)
+        })
+        return(rastfin)
+        
+      })
+      filtered_inside <- Filter(Negate(is.null), dt_timeRST)
+      
+      if (length(filtered_inside) > 0) {
+        return(terra::rast(filtered_inside))
+      } else {
+        return(NULL) # Pass the skip up the chain
+      }
+    })
+    
+    filtered_outside<-Filter(Negate(is.null), listed_rasters)
+    compiledRasters<-terra::rast(filtered_outside)
+  }else{
+    message("Bucket isn't available")
+  }
+}
+
+#pull date ranges from dcFlood_times
+date_ranges<-pull_dateRanges(dcFlood_times)
+
+#compile PRCP from rasters
+# Starting from flood event 99 since MRMS's earliest data is from 20201014/
+sampleDCFloodevents<-date_ranges[99:125]
+dcFloodPRCP<-compilePRCP(sampleDCFloodevents,conf_buck(NOAMRMMS_bucket,region))
+
+
+#Create RHDF5 file
+
+h5_file <- "data/dc_floodEvent_DB.h5"
+h5createFile(h5_file)
+
+#split into time series group and gridded precipitation group
+# allows for possible extension to other gridded precipitation sources like PRISm
+# also allows for other stations to be added to station time series group
+h5createGroup(h5_file, "station_TimeSeries")
+h5createGroup(h5_file, "station_TimeSeries/Washington National")
+h5createGroup(h5_file, "gridded_precipitation")
+h5createGroup(h5_file, "gridded_precipitation/NOAAA MRMS")
+
+#add 
+PRCPdataOBJ$date_char <- as.character(PRCPdataOBJ$date) 
+h5write(PRCPdataOBJ, h5_file, "station_TimeSeries/Washington National/ts_data")
+
 
 #how to download rhdf5
 #install.packages("BiocManager")
