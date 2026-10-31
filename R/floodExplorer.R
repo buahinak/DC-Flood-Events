@@ -66,17 +66,21 @@ bucket_check<-conf_buck(NOAMRMMS_bucket,region)
 
 #compile PRCP from rasters
 # Starting from flood event 99 since MRMS's earliest data is from 20201014/
-#for project purposes, will only run on one flood event
-sampleDCFloodevents<-date_ranges[100]
 
-#run following code to run on all available date ranges
-#sampleDCFloodevents<-date_ranges[99:125]
+
+#run following code to run on all available date ranges(Data past 2020-10-14)
+sampleDCFloodevents<-date_ranges[99:125]
+
+#run following code for just one flood event if you don't want to go through whole dataset
+#sampleDCFloodevents<-date_ranges[100]
 
 dcFloodPRCP<-compilePRCP(sampleDCFloodevents,conf_buck(NOAMRMMS_bucket,region))
 
 
 #Create Rcreate HDF5 files
 h5_file <- "data/dc_floodEvent_DB.h5"
+
+#delete dcFloodEvent file if it exists
 if(file.exists(h5_file)) {
   file.remove(h5_file)
   h5closeAll()
@@ -139,7 +143,7 @@ station_meta <- rhdf5::h5readAttributes(h5_file, "station_TimeSeries/Washington 
 
 meta_df <- data.frame(
   Attribute = names(station_meta),
-  Value = sapply(gridded_meta, function(x) paste(x, collapse = ", ")),
+  Value = sapply(station_meta, function(x) paste(x, collapse = ", ")),
   row.names = NULL
 )
 knitr::kable(meta_df, format = "markdown", col.names = c("Metadata Attribute", "Value / Description"))
@@ -148,7 +152,7 @@ knitr::kable(meta_df, format = "markdown", col.names = c("Metadata Attribute", "
 
 #pull station data from 2020-10 to 2023-05
 ts_station_data <- hdf5_stationQuery(h5_file, "1980-10-12", "2026-05-20")
-print(head(event_data))
+print(head(ts_station_data))
 
 #example of available data range that can be pulled for
 date_ranges<-'1996-01-01 00:00 - 2026-01-01 00:00'
