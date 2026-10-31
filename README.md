@@ -1,5 +1,5 @@
 
-How to run this project:
+How to use this project:
 
 Info on Data sources
 
@@ -56,3 +56,35 @@ Dictionary for added columns in station precipitation data
   depth_dim_n was divided by 10 to get the resulting value
   Missing values for period quantity(coded as 99 in actual data) are NA in dataset
   Missing values for depth dimension(coded as 9999 in actual data) are NA in dataset
+
+Metadata for HDF5 file
+
+Structure:
+                                    group                  name       otype   dclass           dim
+0                                       / gridded_precipitation   H5I_GROUP                       
+1                  /gridded_precipitation            NOAAA MRMS   H5I_GROUP                       
+2       /gridded_precipitation/NOAAA MRMS      QPE_01HOURS_data H5I_DATASET    FLOAT 20 x 21 x 156
+3                                       /    station_TimeSeries   H5I_GROUP                       
+4                     /station_TimeSeries   Washington National   H5I_GROUP                       
+5 /station_TimeSeries/Washington National               ts_data H5I_DATASET COMPOUND          2157
+
+NOAA Station Precipitation Metadata:
+
+|Metadata Attribute       |Value / Description                                                    |
+|:------------------------|:----------------------------------------------------------------------|
+|Coordinates              |38.8472,-77.0344                                                       |
+|Precipitation Collection |HOURLY ACCUMULATION OF LIQUID PRECIPITATION. SOME EVENTS HAVE >AN HOUR |
+|Station ID               |USW00013743                                                            |
+|Units                    |mm                                                                     |
+
+NOAA MRMRS Gridded Precipitation Metadata:
+class       : SpatRaster
+size        : 20, 21, 156  (nrow, ncol, nlyr)
+resolution  : 0.01001743, 0.01021  (x, y)
+extent      : -77.11976, -76.90939, 38.79165, 38.99585  (xmin, xmax, ymin, ymax)
+coord. ref. : lon/lat Coordinate System imported from GRIB file
+source(s)   : memory
+names       : Multi~-GPML, Multi~-GPML, Multi~-GPML, Multi~-GPML, Multi~-GPML, Multi~-GPML, ...
+min values  :           2,         4.5,         0.4,         0.3,         1.5,           0, ...
+max values  :          16,        31.1,           9,         7.7,         7.3,         1.3, ...
+time        : 2020-11-12 04:00:00zUTC to 2025-07-19 19:00:00zUTC (153 steps)

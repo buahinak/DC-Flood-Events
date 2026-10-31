@@ -320,7 +320,22 @@ h5writeAttribute("HOURLY ACCUMULATION OF LIQUIDPRECIPITATION", actual, "Precipit
 H5Fclose(pointr)
 H5Dclose(actual)
 h5closeAll()
-#
+
+#get metadata summary for documentation
+rhdf5::h5ls(h5_file)
+
+station_meta <- rhdf5::h5readAttributes(h5_file, "station_TimeSeries/Washington National/ts_data")
+
+meta_df <- data.frame(
+  Attribute = names(gridded_meta),
+  Value = sapply(gridded_meta, function(x) paste(x, collapse = ", ")),
+  row.names = NULL
+)
+knitr::kable(meta_df, format = "markdown", col.names = c("Metadata Attribute", "Value / Description"))
+
+
+
 #how to download rhdf5
 #install.packages("BiocManager")
 #BiocManager::install('rhdf5')
+
