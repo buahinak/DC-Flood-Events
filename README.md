@@ -88,3 +88,6 @@ names       : Multi~-GPML, Multi~-GPML, Multi~-GPML, Multi~-GPML, Multi~-GPML, M
 min values  :           2,         4.5,         0.4,         0.3,         1.5,           0, ...
 max values  :          16,        31.1,           9,         7.7,         7.3,         1.3, ...
 time        : 2020-11-12 04:00:00zUTC to 2025-07-19 19:00:00zUTC (153 steps)
+Precipitation Collection
+[1] "HOURLY ACCUMULATION OF LIQUIDPRECIPITATION"
+Time Index(UTC)`

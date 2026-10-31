@@ -355,5 +355,41 @@ hdf5_stationQuery<- function(hdf5_p, start_time, end_time) {
 }
 
 #pull station data from 2020-10 to 2023-05
-event_data <- hdf5_stationQuery(h5_file, "2020-10-12", "2023-05-20")
+ts_station_data <- hdf5_stationQuery(h5_file, "2020-10-12", "2023-05-20")
 print(head(event_data))
+
+#data range has to be created using pull_dateRanges(). Pass the flood event dataset as a parameter into this function 
+# function only works on one date range at a time currently
+hdf5_griddedQuery<- function(hdf5_p, date_range) {
+  doi<-formatDT_NOAA(date_range)
+  dt_start<-min(lubridate::ymd_hms(doi,tz="UTC"))
+  dt_end<-max(lubridate::ymd_hms(doi,tz="UTC"))
+  
+  dt_p <- "gridded_precipitation/NOAAA MRMS/QPE_01HOURS_data"
+  meta <- rhdf5::h5readAttributes(hdf5_p, dt_p)
+  times_grid <- as.POSIXct(meta$`Time Index(UTC)`, tz = "UTC")
+  
+  
+  #find matrix values that are within dates
+  indInFrame <- tibble(date = times_grid) %>%
+    mutate(rownum = row_number()) %>%
+    filter(date >= dt_start & date <= dt_end) %>%
+    pull(rownum)
+  filteredDat <- rhdf5::h5read(hdf5_p, dt_p, index = list(NULL, NULL, indInFrame),drop = FALSE)
+  filteredRast <- terra::rast(filteredDat)
+  
+  terra::ext(filteredRast) <- as.numeric(meta$`Extent Bound Box`)
+  terra::crs(filteredRast) <- meta$CRS
+  terra::time(filteredRast) <- times_grid[indInFrame]
+  names(filteredRast) <- rep("MultiSensor_QPE_01H_Pass2_0-GPML", length(indInFrame))
+
+  return(filteredRast)
+}
+
+#example of available data range that can be pulled for
+date_ranges<-pull_dateRanges(dcFlood_times)[100]
+print(date_ranges)
+
+#pull example date range from flood event and  pass items from that 
+gridded_data <- hdf5_griddedQuery(h5_file, date_ranges)
+print(gridded_data)
