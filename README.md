@@ -1,35 +1,34 @@
-ACKNOWLEDGEMENT OF AI USE:
-Gemini was used for programming, debugging and speeding up code, explaining spatial data and creating visualization for this project. AI was not used for documentation of code or construction of this readme FILE
 
-How to use this project:
+## How to use this project:
 - Download project to local machine 
 - Open zip file and open DC Flood Events.rproj.
 - This project uses renv to track packages and dependencies 
 - Create a /data folder in the main project directory and place DC_flood_times.csv in that folder. This will be very important for the analysis portion of this project
-- Run renv::restore() after you have open the project in your R console.
+- Run renv::restore() after you have opened the project in your R console.
 
-Other important info:
+**Other important info**
 - Main analysis script can be found in /R folder in floodExplorer.R
-- helpers.R has all functions used for analysis this is 
-- helpers.R is sources in floodExplorer.R
-- If you have issues installing rhdf5 try running the following code in console 
+- R/helpers.R has all functions used for analysis this is 
+- helpers.R is sourced in floodExplorer.R
+- If you have issues installing rhdf5, try running the following code in console 
     install.packages("BiocManager")
     BiocManager::install('rhdf5')
 - I have included the figures I made through my analysis since they are very small png files(2 png files)
 
+## ACKNOWLEDGEMENT OF AI USE:
+Gemini was used for programming, debugging and speeding up code, explaining spatial data and creating visualizations for this project. AI was not used for documentation of code or construction of this readme FILE
 
-Data Sources:
+## Data Sources:
 Based on the flood event datasets in DC, I am pulling precipitation data from 2 sources:
   
-  Weather Station data in the DC area
-  NOAA MRMS
+  **Weather Station data in the DC area**
+  **NOAA MRMS**
 
-To investigate the NOAA weather stations in the area, I found 25 stations nearby Foggy Bottom Metro station at the following coordinates: lat=38.9007,lon=-77.0503. I used the readnoaa package in R to find these nearby stations.I also checked for precipitation data availability for the 25 stations that I found.
+To investigate the NOAA weather stations in the area, I found 25 stations nearby Foggy Bottom Metro station at the following coordinates: latitude=38.9007,longitude=-77.0503. I used the readnoaa package in R to find these nearby stations.I also checked for precipitation data availability for the 25 stations that I found.
 
-Washington Reagan had the most robust precipiation time series data as it covers 86 years of flood precipitation from 1941-2026.
+Washington Reagan had the most robust precipitation time series data as it covers 86 years of flood precipitation from 1941-2026.
 
-Robustness Check for NOAA station precipitation data
-DCA Reagan
+**Robustness Check for NOAA station precipitation data at DCA Reagan**
 
 |station     |element | first_year| last_year| years|name                      |
 |:-----------|:-------|----------:|---------:|-----:|:-------------------------|
@@ -59,28 +58,19 @@ DCA Reagan
 |USC00181135 |PRCP    |       1944|      1956|    13|BRIGHTWOOD DC             |
 |US1DCDC0040 |PRCP    |       2022|      2026|     5|WASHINGTON 2.2 ESE        |
 
-Summary Stats for Washington Reagan Precipitation Data
+**Summary Stats for Washington Reagan Precipitation Data**
 
-   station              name              latitude       longitude        elevation          date                       
- Length:455947      Length:455947      Min.   :38.85   Min.   :-77.03   Min.   :3.000   Min.   :1996-01-19 00:00:00.00  
- Class :character   Class :character   1st Qu.:38.85   1st Qu.:-77.03   1st Qu.:3.000   1st Qu.:2002-07-19 07:55:30.00  
- Mode  :character   Mode  :character   Median :38.85   Median :-77.03   Median :3.000   Median :2009-11-12 18:52:00.00  
-                                       Mean   :38.85   Mean   :-77.03   Mean   :3.197   Mean   :2010-03-21 15:55:07.73  
-                                       3rd Qu.:38.85   3rd Qu.:-77.03   3rd Qu.:3.000   3rd Qu.:2017-09-17 13:15:30.00  
-                                       Max.   :38.85   Max.   :-77.03   Max.   :4.100   Max.   :2025-07-19 23:52:00.00  
-    source          report_type         call_sign         quality_control        aa1                aa2           
- Length:455947      Length:455947      Length:455947      Length:455947      Length:455947      Length:455947     
- Class :character   Class :character   Class :character   Class :character   Class :character   Class :character  
- Mode  :character   Mode  :character   Mode  :character   Mode  :character   Mode  :character   Mode  :character  
-                                                                                                                  
-                                                                                                                  
-                                                                                                                  
-     aa3                aa4           
- Length:455947      Length:455947     
- Class :character   Class :character  
- Mode  :character   Mode  :character  
+|   |  station        |    name         |   latitude   |  longitude    |  elevation   |     date                      |   source        |report_type      | call_sign       |quality_control  |  period_q_1   | depth_dim_1   | cond_code_1  |qual_code_1      |  period_q_2   | depth_dim_2   | cond_code_2  | qual_code_2 |  period_q_3  | depth_dim_3   | cond_code_3 | qual_code_3  |  period_q_4 | depth_dim_4  | cond_code_4 | qual_code_4 | date_char       |
+|:--|:----------------|:----------------|:-------------|:--------------|:-------------|:------------------------------|:----------------|:----------------|:----------------|:----------------|:--------------|:--------------|:-------------|:----------------|:--------------|:--------------|:-------------|:------------|:-------------|:--------------|:------------|:-------------|:------------|:-------------|:------------|:------------|:----------------|
+|   |Length:2157      |Length:2157      |Min.   :38.85 |Min.   :-77.03 |Min.   :3.000 |Min.   :1996-01-19 11:00:00.00 |Length:2157      |Length:2157      |Length:2157      |Length:2157      |Min.   : 1.000 |Min.   :0.0000 |Min.   :2.000 |Length:2157      |Min.   : 3.000 |Min.   :0.0000 |Min.   :2.000 |Min.   :1.0  |Min.   : 6.00 |Min.   : 0.000 |Min.   :9    |Min.   :1.000 |Min.   : NA  |Min.   : 7.00 |Min.   :9    |Min.   :1    |Length:2157      |
+|   |Class :character |Class :character |1st Qu.:38.85 |1st Qu.:-77.03 |1st Qu.:3.000 |1st Qu.:2005-04-02 11:51:00.00 |Class :character |Class :character |Class :character |Class :character |1st Qu.: 1.000 |1st Qu.:0.0000 |1st Qu.:3.000 |Class :character |1st Qu.: 3.000 |1st Qu.:0.0030 |1st Qu.:9.000 |1st Qu.:1.0  |1st Qu.:24.00 |1st Qu.: 0.250 |1st Qu.:9    |1st Qu.:1.000 |1st Qu.: NA  |1st Qu.:15.97 |1st Qu.:9    |1st Qu.:1    |Class :character |
+|   |Mode  :character |Mode  :character |Median :38.85 |Median :-77.03 |Median :3.000 |Median :2014-04-30 22:36:00.00 |Mode  :character |Mode  :character |Mode  :character |Mode  :character |Median : 1.000 |Median :0.0018 |Median :9.000 |Mode  :character |Median : 6.000 |Median :0.0850 |Median :9.000 |Median :1.0  |Median :24.00 |Median : 1.420 |Median :9    |Median :1.000 |Median : NA  |Median :24.95 |Median :9    |Median :1    |Mode  :character |
+|   |                 |                 |Mean   :38.85 |Mean   :-77.03 |Mean   :3.151 |Mean   :2011-12-11 06:38:42.42 |                 |                 |                 |                 |Mean   : 1.638 |Mean   :0.0051 |Mean   :6.222 |                 |Mean   : 6.271 |Mean   :0.1708 |Mean   :8.403 |Mean   :1.1  |Mean   :21.43 |Mean   : 3.098 |Mean   :9    |Mean   :1.054 |Mean   :NaN  |Mean   :24.95 |Mean   :9    |Mean   :1    |                 |
+|   |                 |                 |3rd Qu.:38.85 |3rd Qu.:-77.03 |3rd Qu.:3.000 |3rd Qu.:2018-11-24 19:52:00.00 |                 |                 |                 |                 |3rd Qu.: 1.000 |3rd Qu.:0.0058 |3rd Qu.:9.000 |                 |3rd Qu.: 6.000 |3rd Qu.:0.2218 |3rd Qu.:9.000 |3rd Qu.:1.0  |3rd Qu.:24.00 |3rd Qu.: 4.670 |3rd Qu.:9    |3rd Qu.:1.000 |3rd Qu.: NA  |3rd Qu.:33.92 |3rd Qu.:9    |3rd Qu.:1    |                 |
+|   |                 |                 |Max.   :38.85 |Max.   :-77.03 |Max.   :4.100 |Max.   :2025-07-19 18:00:00.00 |                 |                 |                 |                 |Max.   :24.000 |Max.   :0.1318 |Max.   :9.000 |                 |Max.   :24.000 |Max.   :1.8010 |Max.   :9.000 |Max.   :9.0  |Max.   :24.00 |Max.   :18.010 |Max.   :9    |Max.   :2.000 |Max.   : NA  |Max.   :42.90 |Max.   :9    |Max.   :1    |                 |
+|   |                 |                 |              |               |              |                               |                 |                 |                 |                 |NA's   :411    |NA's   :411    |NA's   :411   |                 |NA's   :1936   |NA's   :1937   |NA's   :1936  |NA's   :1936 |NA's   :2122  |NA's   :2120   |NA's   :2120 |NA's   :2120  |NA's   :2157 |NA's   :2155  |NA's   :2155 |NA's   :2155 |                 |
 
-NOAA MRMS Precipitation data
+** NOAA MRMS Precipitation data
     
 Data was pulled from the NOAA MRMS AWS S3 open bucket which can be explored in browser here: https://noaa-mrms-pds.s3.amazonaws.com/index.html
 Documentation on bucket's info can be found here: https://registry.opendata.aws/noaa-mrms-pds/
@@ -91,7 +81,7 @@ I explored the bucket in browser to devise a reproducible way to pull MRMS data.
 Data Missingness
 In addition to data prior to October 14 2020 being unavailable, data from September 16 2021 8:00-9:00 P.M UTC is unavailable in the s3 bucket.
 
-Data Manipulation
+## Data Manipulation
 
 AA1-AA4 precipitation data was pulled from NOAA. Info on these readings can be found on pg 13 of the    following documentation : https://www.ncei.noaa.gov/pub/data/noaa/isd-format-document.pdf 
   
@@ -108,11 +98,11 @@ AA1-AA4 precipitation data was pulled from NOAA. Info on these readings can be f
 
 No data manipulation was performed on the gridded precipitation data. Metadata features were added to both gridded precipitation data and station data.
 
-HDF5 File Structure
+## HDF5 File Structure
 
 An HDF5 file with all collectible flood event data can be found in the data/ folder of this project. The layered structure for the HDF5 file is as follows
 
-Structure:
+**Structure**:
                                     group                  name       otype   dclass           dim
 0                                       / gridded_precipitation   H5I_GROUP                       
 1                  /gridded_precipitation            NOAAA MRMS   H5I_GROUP                       
@@ -124,7 +114,7 @@ Structure:
 The data set is  split into station time series(station_TimeSeries) group and gridded precipitation(gridded_precipitation) group. This structure allows for possible extension to other gridded precipitation sources like PRISM being added to the group in addition to the NOAA MRMS and other stations around DC to be added to the station time series group. I used Gemini for programming assistance in developing the HDF5 saving pipeline. Since I am not very familiar with spatial data , I used Gemini to program visualizations of the gridded precipitation data and the station time series data.
 The following is the metadata associated with the station time series and gridded precipitation data.
 
-NOAA Station Precipitation Metadata:
+**NOAA Station Precipitation Metadata:**
 
 |Metadata Attribute       |Value / Description                                                    |
 |:------------------------|:----------------------------------------------------------------------|
@@ -133,7 +123,8 @@ NOAA Station Precipitation Metadata:
 |Station ID               |USW00013743                                                            |
 |Units                    |mm                                                                     |
 
-NOAA MRMRS Gridded Precipitation Metadata:
+**NOAA MRMRS Gridded Precipitation Metadata:**
+
 class       : SpatRaster
 size        : 20, 21, 156  (nrow, ncol, nlyr)
 resolution  : 0.01001743, 0.01021  (x, y)

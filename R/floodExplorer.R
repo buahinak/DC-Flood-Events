@@ -46,6 +46,9 @@ PRCPdataOBJ<-PRCP_stat(floodDt=dcFlood_times)
 #Initialize date ranges vector so that we can compile raster data from flood events based on date ranges
 date_ranges<-pull_dateRanges(dcFlood_times)
 
+#create summary table for read me
+#knitr::kable(summary(PRCPdataOBJ)%>%replace(is.na(.),''),format='markdown')
+
 #Exploration Spatial data for DC
 
 #Pull DC boundaries for gridded precipiation data

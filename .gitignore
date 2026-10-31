@@ -3,4 +3,6 @@
 .RData
 .Ruserdata
 .DS_Store
-data/
+data/DC_flood_times.csv
+data/dc_floodEvent_DB.h5
+README.html
