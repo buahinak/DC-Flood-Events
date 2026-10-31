@@ -1,9 +1,9 @@
+ACKNOWLEDGEMENT OF AI USE:
+Gemini was used for programming, debugging and speeding up code, explaining spatial data and creating visualization for this project. AI was not used for documentation of code or construction of this readme FILE
 
 How to use this project:
-
-Gemini was used for programming, debugging and speed up code, explain general spatial data create visualization for this project. AI was not used for documentation of code or readme files. 
+This project uses renv to track packages and dependencies
 Data Sources:
-
 Based on the flood event datasets in DC, I am pulling precipitation data from 2 sources:
   
   Weather Station data in the DC area
