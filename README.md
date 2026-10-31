@@ -5,8 +5,16 @@ How to use this project:
 - Download project to local machine 
 - Open zip file and open DC Flood Events.rproj.
 - This project uses renv to track packages and dependencies 
-  -Run renv::restore() after you have open the project in your R console.
+- Create a /data folder in the main project directory and place DC_flood_times.csv in that folder. This will be very important for the analysis portion of this project
+- Run renv::restore() after you have open the project in your R console.
 
+Other important info:
+- Main analysis script can be found in /R folder in floodExplorer.R
+- helpers.R has all functions used for analysis this is 
+- helpers.R is sources in floodExplorer.R
+- If you have issues installing rhdf5 try running the following code in console 
+    install.packages("BiocManager")
+    BiocManager::install('rhdf5')
 
 
 Data Sources:
@@ -50,6 +58,26 @@ DCA Reagan
 |USC00181135 |PRCP    |       1944|      1956|    13|BRIGHTWOOD DC             |
 |US1DCDC0040 |PRCP    |       2022|      2026|     5|WASHINGTON 2.2 ESE        |
 
+Summary Stats for Washington Reagan Precipitation Data
+
+   station              name              latitude       longitude        elevation          date                       
+ Length:455947      Length:455947      Min.   :38.85   Min.   :-77.03   Min.   :3.000   Min.   :1996-01-19 00:00:00.00  
+ Class :character   Class :character   1st Qu.:38.85   1st Qu.:-77.03   1st Qu.:3.000   1st Qu.:2002-07-19 07:55:30.00  
+ Mode  :character   Mode  :character   Median :38.85   Median :-77.03   Median :3.000   Median :2009-11-12 18:52:00.00  
+                                       Mean   :38.85   Mean   :-77.03   Mean   :3.197   Mean   :2010-03-21 15:55:07.73  
+                                       3rd Qu.:38.85   3rd Qu.:-77.03   3rd Qu.:3.000   3rd Qu.:2017-09-17 13:15:30.00  
+                                       Max.   :38.85   Max.   :-77.03   Max.   :4.100   Max.   :2025-07-19 23:52:00.00  
+    source          report_type         call_sign         quality_control        aa1                aa2           
+ Length:455947      Length:455947      Length:455947      Length:455947      Length:455947      Length:455947     
+ Class :character   Class :character   Class :character   Class :character   Class :character   Class :character  
+ Mode  :character   Mode  :character   Mode  :character   Mode  :character   Mode  :character   Mode  :character  
+                                                                                                                  
+                                                                                                                  
+                                                                                                                  
+     aa3                aa4           
+ Length:455947      Length:455947     
+ Class :character   Class :character  
+ Mode  :character   Mode  :character  
 
 NOAA MRMS Precipitation data
     
