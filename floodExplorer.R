@@ -7,6 +7,8 @@ library(rhdf5)
 library(sf)
 library(tigris)
 library(aws.s3)
+library(ggplot2)
+library(tidyterra)
 
 dcFlood_times<-read.csv("data/DC_flood_times.csv")
 
@@ -258,7 +260,8 @@ date_ranges<-pull_dateRanges(dcFlood_times)
 
 #compile PRCP from rasters
 # Starting from flood event 99 since MRMS's earliest data is from 20201014/
-sampleDCFloodevents<-date_ranges[99:125]
+#for project puprosee, will only run on one flood event
+sampleDCFloodevents<-date_ranges[100]
 dcFloodPRCP<-compilePRCP(sampleDCFloodevents,conf_buck(NOAMRMMS_bucket,region))
 
 
@@ -273,7 +276,7 @@ h5createFile(h5_file)
 
 
 
-#split into time series group and gridded precipitation group
+# split into time series group and gridded precipitation group
 # allows for possible extension to other gridded precipitation sources like PRISm
 # also allows for other stations to be added to station time series group
 h5createGroup(h5_file, "station_TimeSeries")
@@ -355,7 +358,7 @@ hdf5_stationQuery<- function(hdf5_p, start_time, end_time) {
 }
 
 #pull station data from 2020-10 to 2023-05
-ts_station_data <- hdf5_stationQuery(h5_file, "2020-10-12", "2023-05-20")
+ts_station_data <- hdf5_stationQuery(h5_file, "1980-10-12", "2026-05-20")
 print(head(event_data))
 
 #data range has to be created using pull_dateRanges(). Pass the flood event dataset as a parameter into this function 
@@ -387,9 +390,65 @@ hdf5_griddedQuery<- function(hdf5_p, date_range) {
 }
 
 #example of available data range that can be pulled for
-date_ranges<-pull_dateRanges(dcFlood_times)[100]
-print(date_ranges)
+date_ranges<-'1996-01-01 00:00 - 2026-01-01 00:00'
 
 #pull example date range from flood event and  pass items from that 
 gridded_data <- hdf5_griddedQuery(h5_file, date_ranges)
 print(gridded_data)
+
+
+plot_station_ts <- function(event_ts) {
+  p <- ggplot(event_ts, aes(x = date, y = depth_dim_1)) +
+    geom_col(fill = "dodgerblue4", color = "black", width = 3600) + # Width in seconds (1 hr)
+    scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +
+    labs(
+      title = "NOAA Station Precipitation Washington National Reagan",
+      subtitle = glue::glue("Event Window: {min(event_ts$date)} to {max(event_ts$date)}"),
+      x = "Time (UTC)",
+      y = "Precipitation (mm)"
+    ) +
+    theme_minimal() +
+    theme(
+      plot.title = element_text(face = "bold"),
+      axis.text.x = element_text(angle = 45, hjust = 1)
+    )
+  
+  return(p)
+}
+
+#date Range is passed to title the figure
+plot_event_raster <- function(event_raster,dateRange,vect) {
+  
+  # Aggregate hourly data over space of date range
+  event_total <- terra::app(event_raster, fun = "sum", na.rm = TRUE)
+  names(event_total) <- "Total_Precipitation_mm"
+  
+  p <- ggplot() +
+    geom_spatraster(data = event_total) +
+    scale_fill_viridis_c(
+      option = "mako", 
+      direction = -1, 
+      na.value = "transparent",
+      name = "Total\nPrecip (mm)"
+    ) +
+    labs(
+      title = glue("DC Area Accumulated: {dateRange} "),
+      subtitle = glue::glue("Aggregated {terra::nlyr(event_raster)} hourly spatial layers")
+    ) +
+    theme_minimal() +
+    theme(plot.title = element_text(face = "bold"))
+  
+  #draw DC CRS vector over plot
+  if (!is.null(dc_vect)) {
+    p <- p + geom_spatvector(data = dc_vect, fill = NA, color = "red", linewidth = 1)
+  }
+  
+  return(p)
+}
+
+
+station_plot <- plot_station_ts(ts_station_data)
+print(station_plot)
+
+radar_plot <- plot_event_raster(gridded_data, dateRange="2020-11-12 04:00 - 2025-07-19 19:00",vect=dc_vect)
+print(radar_plot)
