@@ -70,7 +70,7 @@ Washington Reagan had the most robust precipitation time series data as it cover
 |   |                 |                 |Max.   :38.85 |Max.   :-77.03 |Max.   :4.100 |Max.   :2025-07-19 18:00:00.00 |                 |                 |                 |                 |Max.   :24.000 |Max.   :0.1318 |Max.   :9.000 |                 |Max.   :24.000 |Max.   :1.8010 |Max.   :9.000 |Max.   :9.0  |Max.   :24.00 |Max.   :18.010 |Max.   :9    |Max.   :2.000 |Max.   : NA  |Max.   :42.90 |Max.   :9    |Max.   :1    |                 |
 |   |                 |                 |              |               |              |                               |                 |                 |                 |                 |NA's   :411    |NA's   :411    |NA's   :411   |                 |NA's   :1936   |NA's   :1937   |NA's   :1936  |NA's   :1936 |NA's   :2122  |NA's   :2120   |NA's   :2120 |NA's   :2120  |NA's   :2157 |NA's   :2155  |NA's   :2155 |NA's   :2155 |                 |
 
-** NOAA MRMS Precipitation data
+** NOAA MRMS Precipitation data **
     
 Data was pulled from the NOAA MRMS AWS S3 open bucket which can be explored in browser here: https://noaa-mrms-pds.s3.amazonaws.com/index.html
 Documentation on bucket's info can be found here: https://registry.opendata.aws/noaa-mrms-pds/
