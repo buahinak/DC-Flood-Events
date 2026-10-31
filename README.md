@@ -1,14 +1,15 @@
 
 How to use this project:
 
-Info on Data sources
+Gemini was used for programming, debugging and speed up code, explain general spatial data create visualization for this project. AI was not used for documentation of code or readme files. 
+Data Sources:
 
 Based on the flood event datasets in DC, I am pulling precipitation data from 2 sources:
   
   Weather Station data in the DC area
   NOAA MRMS
 
-To investigate the stations in the area, I found 25 stations nearby Foggy Bottom Metro station at the following coordinates: lat=38.9007,lon=-77.0503. I used the readnoaa package in R to find these nearby stations.I also checked for precipitation data availability for the 25 stations that I found.
+To investigate the NOAA weather stations in the area, I found 25 stations nearby Foggy Bottom Metro station at the following coordinates: lat=38.9007,lon=-77.0503. I used the readnoaa package in R to find these nearby stations.I also checked for precipitation data availability for the 25 stations that I found.
 
 Washington Reagan had the most robust precipiation time series data as it covers 86 years of flood precipitation from 1941-2026.
 
@@ -43,8 +44,21 @@ DCA Reagan
 |USC00181135 |PRCP    |       1944|      1956|    13|BRIGHTWOOD DC             |
 |US1DCDC0040 |PRCP    |       2022|      2026|     5|WASHINGTON 2.2 ESE        |
 
-Dictionary for added columns in station precipitation data
-  AA1-AA4 precipitation data was pulled from NOAA. Info on these readings can be found on pg 13 of the    following documentation : https://www.ncei.noaa.gov/pub/data/noaa/isd-format-document.pdf 
+
+NOAA MRMS Precipitation data
+    
+Data was pulled from the NOAA MRMS AWS S3 open bucket which can be explored in browser here: https://noaa-mrms-pds.s3.amazonaws.com/index.html
+Documentation on bucket's info can be found here: https://registry.opendata.aws/noaa-mrms-pds/
+
+I explored the bucket in browser to devise a reproducible way to pull MRMS data. I found the Precip Rate, Precip Flag and MultiSensorQPE data in the bucket. I initially combed through Precip rate data. The data was too detailed however, because there is precipitation data every 2 minutes. The MultiSensorQPE 1H dataset was the best fit computationally since I could pull accumulated precipitation data for every hour instead of every 2 minutes.I used MultiSensor_QPE_01H_Pass2_00.00 instead of MultiSensor_QPE_01H_Pass1_00.00 because Pass2 captures 99% of available rain gauges over 2 hours instead of 1(https://vlab.noaa.gov/web/wdtd/-/multi-sensor-qpe). The S3 bucket only has precipitation data from October 14 2020 to current day. 
+
+ There was initial difficulty with accessing these files thorugh R. First method to get data into are was to save the data into memory using a temporary file then rasterizing it using the terra package. I found that the easiest method would be to read the image remotely using GDAL VSI prefix(/vsigzip//vsicurl/ ) before referring to the files. Documentation  at https://gdal.org/en/stable/user/virtual_file_systems.html was helpful for this. I created functions to find each hour within a specified date and format the date into a file structure that could be looped over. Exploring the s3 bucket through html in my browser was integral for this.I used Gemini to help me translate code from documentation into actionable R code. I also found difficulty in programming code that was fast. I used Gemini to help me debug and speed up slow date parsing code.
+Data Missingness
+In addition to data prior to October 14 2020 being unavailable, data from September 16 2021 8:00-9:00 P.M UTC is unavailable in the s3 bucket.
+
+Data Manipulation
+
+AA1-AA4 precipitation data was pulled from NOAA. Info on these readings can be found on pg 13 of the    following documentation : https://www.ncei.noaa.gov/pub/data/noaa/isd-format-document.pdf 
   
   Separated the readings from the 4 accumulated readings and created new variables that can be found in   the HDF5 dataset
   n=[1,2,3,4]
@@ -57,7 +71,11 @@ Dictionary for added columns in station precipitation data
   Missing values for period quantity(coded as 99 in actual data) are NA in dataset
   Missing values for depth dimension(coded as 9999 in actual data) are NA in dataset
 
-Metadata for HDF5 file
+No data manipulation was performed on the gridded precipitation data. Metadata features were added to both gridded precipitation data and station data.
+
+HDF5 File Structure
+
+An HDF5 file with all collectible flood event data can be found in the data/ folder of this project. The layered structure for the HDF5 file is as follows
 
 Structure:
                                     group                  name       otype   dclass           dim
@@ -67,6 +85,9 @@ Structure:
 3                                       /    station_TimeSeries   H5I_GROUP                       
 4                     /station_TimeSeries   Washington National   H5I_GROUP                       
 5 /station_TimeSeries/Washington National               ts_data H5I_DATASET COMPOUND          2157
+
+The data set is  split into station time series(station_TimeSeries) group and gridded precipitation(gridded_precipitation) group. This structure allows for possible extension to other gridded precipitation sources like PRISM being added to the group in addition to the NOAA MRMS and other stations around DC to be added to the station time series group. I used Gemini for programming assistance in developing the HDF5 saving pipeline. Since I am not very familiar with spatial data , I used Gemini to program visualizations of the gridded precipitation data and the station time series data.
+The following is the metadata associated with the station time series and gridded precipitation data.
 
 NOAA Station Precipitation Metadata:
 
