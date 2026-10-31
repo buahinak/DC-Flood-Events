@@ -339,3 +339,21 @@ knitr::kable(meta_df, format = "markdown", col.names = c("Metadata Attribute", "
 #install.packages("BiocManager")
 #BiocManager::install('rhdf5')
 
+#dates must be in ymd format
+hdf5_stationQuery<- function(hdf5_p, start_time, end_time) {
+  
+  dt_p <- "station_TimeSeries/Washington National/ts_data"
+  station_data <- rhdf5::h5read(hdf5_p, dt_p)
+  station_data$date <- lubridate::ymd_hms(station_data$date_char, tz = "UTC")
+  
+  dt_start <- lubridate::ymd(start_time, tz = "UTC")
+  dt_end <- lubridate::ymd(end_time, tz = "UTC")
+  event_ts <- station_data %>%
+  dplyr::filter(date >= dt_start & date <= dt_end)
+  
+  return(event_ts)
+}
+
+#pull station data from 2020-10 to 2023-05
+event_data <- hdf5_stationQuery(h5_file, "2020-10-12", "2023-05-20")
+print(head(event_data))
