@@ -3,7 +3,7 @@
 - Download project to local machine 
 - Open zip file and open DC Flood Events.rproj.
 - This project uses renv to track packages and dependencies 
-- Create a /data folder in the main project directory and place DC_flood_times.csv in that folder. This will be very important for the analysis portion of this project
+-  place DC_flood_times.csv in /data folder. This will be very important for the analysis portion of this project
 - Run renv::restore() after you have opened the project in your R console.
 
 **Other important info**
