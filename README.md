@@ -2,7 +2,13 @@ ACKNOWLEDGEMENT OF AI USE:
 Gemini was used for programming, debugging and speeding up code, explaining spatial data and creating visualization for this project. AI was not used for documentation of code or construction of this readme FILE
 
 How to use this project:
-This project uses renv to track packages and dependencies
+- Download project to local machine 
+- Open zip file and open DC Flood Events.rproj.
+- This project uses renv to track packages and dependencies 
+  -Run renv::restore() after you have open the project in your R console.
+
+
+
 Data Sources:
 Based on the flood event datasets in DC, I am pulling precipitation data from 2 sources:
   
