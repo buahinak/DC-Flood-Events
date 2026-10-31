@@ -15,6 +15,7 @@ Other important info:
 - If you have issues installing rhdf5 try running the following code in console 
     install.packages("BiocManager")
     BiocManager::install('rhdf5')
+- I have included the figures I made through my analysis since they are very small png files(2 png files)
 
 
 Data Sources:
